@@ -94,7 +94,6 @@ struct APIKeyInputView: View {
             }
             .padding()
             .navigationTitle("API Configuration")
-            .navigationBarTitleDisplayMode(.inline)
         }
         .frame(width: 500, height: 600)
         .onAppear {
@@ -255,7 +254,6 @@ struct DocumentDetailView: View {
             .padding()
         }
         .navigationTitle(document.name)
-        .navigationBarTitleDisplayMode(.inline)
         .quickLookPreview($quickLookURL)
     }
 }
@@ -437,7 +435,6 @@ struct ExportView: View {
             }
             .padding()
             .navigationTitle("Export")
-            .navigationBarTitleDisplayMode(.inline)
         }
         .frame(width: 400, height: 300)
     }

@@ -21,6 +21,7 @@ let package = Package(
             path: ".",
             sources: [
                 "DocumentOrganizerApp.swift",
+                "CancellableOperation.swift",
                 "DocumentManager.swift", 
                 "IndexingManager.swift",
                 "AIManager.swift",
@@ -28,6 +29,12 @@ let package = Package(
                 "AIAnalysisView.swift",
                 "AdditionalViews.swift"
             ]
+        ),
+        .testTarget(
+            name: "DocumentOrganizerAppTests",
+            dependencies: ["DocumentOrganizerApp"],
+            path: "Tests",
+            sources: ["CancellationTests.swift"]
         )
     ]
 )

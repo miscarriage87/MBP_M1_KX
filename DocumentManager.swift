@@ -3,7 +3,14 @@ import SwiftUI
 import Combine
 import OSLog
 
-class DocumentManager: ObservableObject {
+class DocumentManager: BaseCancellableOperation {
+    private let processingDelay: TimeInterval
+    
+    init(processingDelay: TimeInterval = 0) {
+        self.processingDelay = processingDelay
+        super.init()
+        setupDirectoryStructure()
+    }
     private let logger = Logger(subsystem: "DocumentOrganizer", category: "DocumentManager")
     
     @Published var documents: [DocumentItem] = []
@@ -22,9 +29,6 @@ class DocumentManager: ObservableObject {
         "txt", "rtf", "csv", "json", "xml", "zip"
     ]
     
-    init() {
-        setupDirectoryStructure()
-    }
     
     private func setupDirectoryStructure() {
         let homeURL = fileManager.homeDirectoryForCurrentUser
@@ -44,16 +48,12 @@ class DocumentManager: ObservableObject {
         
         defer { url.stopAccessingSecurityScopedResource() }
         
-        isScanning = true
-        scanProgress = 0.0
-        documents.removeAll()
-        
-        documentQueue.async { [weak self] in
-            self?.performDirectoryScan(url)
+        _ = startTask {
+            try await self.performDirectoryScan(url)
         }
     }
     
-    private func performDirectoryScan(_ url: URL) {
+    private func performDirectoryScan(_ url: URL) async throws {
         let resourceKeys: [URLResourceKey] = [
             .isRegularFileKey, .typeIdentifierKey, .fileSizeKey,
             .contentModificationDateKey, .nameKey, .pathKey
@@ -64,7 +64,7 @@ class DocumentManager: ObservableObject {
             includingPropertiesForKeys: resourceKeys,
             options: [.skipsHiddenFiles, .skipsPackageDescendants]
         ) else {
-            DispatchQueue.main.async {
+            await MainActor.run {
                 self.isScanning = false
             }
             return
@@ -73,7 +73,23 @@ class DocumentManager: ObservableObject {
         var foundDocuments: [DocumentItem] = []
         var processedCount = 0
         
-        for case let fileURL as URL in enumerator {
+        await MainActor.run {
+            self.isScanning = true
+            self.scanProgress = 0.0
+            self.documents.removeAll()
+        }
+        
+        // Convert enumerator to array to avoid async iteration issues
+        let allURLs = Array(enumerator.compactMap { $0 as? URL })
+        
+        for fileURL in allURLs {
+            try await checkCancellation() // Check for cancellation before processing each file
+            
+            // Add processing delay for testing observability
+            if processingDelay > 0 {
+                try await Task.sleep(nanoseconds: UInt64(processingDelay * 1_000_000_000))
+            }
+            
             autoreleasepool {
                 do {
                     let resourceValues = try fileURL.resourceValues(forKeys: Set(resourceKeys))
@@ -98,8 +114,8 @@ class DocumentManager: ObservableObject {
                     processedCount += 1
                     
                     if processedCount % 100 == 0 {
-                        DispatchQueue.main.async {
-                            self.scanProgress = Double(processedCount) / 10000.0 // Rough estimate
+                        Task { @MainActor in
+                            self.scanProgress = min(Double(processedCount) / 10000.0, 0.9) // Rough estimate, cap at 90%
                             self.totalDocuments = processedCount
                         }
                     }
@@ -110,7 +126,7 @@ class DocumentManager: ObservableObject {
             }
         }
         
-        DispatchQueue.main.async {
+        await MainActor.run {
             self.documents = foundDocuments.sorted { $0.modificationDate > $1.modificationDate }
             self.totalDocuments = foundDocuments.count
             self.isScanning = false
@@ -171,8 +187,8 @@ class DocumentManager: ObservableObject {
         
         createOrganizedStructure(at: organizedURL)
         
-        documentQueue.async { [weak self] in
-            self?.performDocumentOrganization(to: organizedURL)
+        _ = startTask {
+            try await self.performDocumentOrganization(to: organizedURL)
         }
     }
     
@@ -185,11 +201,13 @@ class DocumentManager: ObservableObject {
         }
     }
     
-    private func performDocumentOrganization(to baseURL: URL) {
+    private func performDocumentOrganization(to baseURL: URL) async throws {
         let totalCount = documents.count
         var processedCount = 0
         
         for document in documents {
+            try await checkCancellation() // Check for cancellation before each document
+            
             autoreleasepool {
                 let categoryFolder = baseURL.appendingPathComponent(document.category.folderName)
                 let destinationURL = categoryFolder.appendingPathComponent(document.name)
@@ -204,9 +222,9 @@ class DocumentManager: ObservableObject {
                     
                     processedCount += 1
                     
-                    DispatchQueue.main.async {
+                    Task { @MainActor in
                         self.organizedDocuments = processedCount
-                        self.scanProgress = Double(processedCount) / Double(totalCount)
+                        await self.updateProgress(Double(processedCount) / Double(totalCount))
                     }
                     
                 } catch {
@@ -215,7 +233,7 @@ class DocumentManager: ObservableObject {
             }
         }
         
-        DispatchQueue.main.async {
+        await MainActor.run {
             self.logger.info("Organization completed. Processed \(processedCount) documents")
         }
     }

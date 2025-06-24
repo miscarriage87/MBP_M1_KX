@@ -156,9 +156,9 @@ struct ContentView: View {
                     
                     TextField("Search documents...", text: $searchText)
                         .textFieldStyle(.plain)
-                        .onChange(of: searchText) { newValue in
-                            if !newValue.isEmpty {
-                                indexingManager.search(newValue)
+                        .onChange(of: searchText) {
+                            if !searchText.isEmpty {
+                                indexingManager.search(searchText)
                             }
                         }
                     

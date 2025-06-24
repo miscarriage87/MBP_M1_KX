@@ -3,7 +3,14 @@ import SwiftUI
 import Combine
 import OSLog
 
-class AIManager: ObservableObject {
+class AIManager: BaseCancellableOperation {
+    private let processingDelay: TimeInterval
+    
+    init(processingDelay: TimeInterval = 0) {
+        self.processingDelay = processingDelay
+        super.init()
+        loadAPIKey()
+    }
     private let logger = Logger(subsystem: "DocumentOrganizer", category: "AIManager")
     
     @Published var isAnalyzing = false
@@ -39,9 +46,6 @@ class AIManager: ObservableObject {
         let complianceRelevance: Double
     }
     
-    init() {
-        loadAPIKey()
-    }
     
     private func loadAPIKey() {
         // Try to load from Keychain or UserDefaults
@@ -63,48 +67,67 @@ class AIManager: ObservableObject {
             return
         }
         
-        isAnalyzing = true
-        analysisProgress = 0.0
-        analysisResults.removeAll()
-        
-        Task {
-            await performBatchAnalysis(documents, indexedContent: indexedContent)
+        _ = startTask {
+            try await self.performBatchAnalysis(documents, indexedContent: indexedContent)
         }
     }
     
-    @MainActor
-    private func performBatchAnalysis(_ documents: [DocumentItem], indexedContent: [String: IndexingManager.DocumentIndex]) async {
+    private func performBatchAnalysis(_ documents: [DocumentItem], indexedContent: [String: IndexingManager.DocumentIndex]) async throws {
         let totalCount = documents.count
         var processedCount = 0
+        
+        await MainActor.run {
+            self.isAnalyzing = true
+            self.analysisProgress = 0.0
+            self.analysisResults.removeAll()
+        }
         
         // Process documents in batches to avoid rate limits
         let batchSize = 5
         let batches = documents.chunked(into: batchSize)
         
         for batch in batches {
+            try await checkCancellation() // Check for cancellation before each batch
+            
+            // Add processing delay for testing observability
+            if processingDelay > 0 {
+                try await Task.sleep(nanoseconds: UInt64(processingDelay * 1_000_000_000))
+            }
+            
             await withTaskGroup(of: DocumentAnalysis?.self) { group in
                 for document in batch {
                     group.addTask {
-                        await self.analyzeDocument(document, indexedContent: indexedContent)
+                        do {
+                            try await self.checkCancellation()
+                            return await self.analyzeDocument(document, indexedContent: indexedContent)
+                        } catch {
+                            return nil
+                        }
                     }
                 }
                 
                 for await result in group {
                     if let analysis = result {
-                        analysisResults.append(analysis)
+                        Task { @MainActor in
+                            self.analysisResults.append(analysis)
+                        }
                     }
                     
                     processedCount += 1
-                    analysisProgress = Double(processedCount) / Double(totalCount)
+                    Task { @MainActor in
+                        self.analysisProgress = Double(processedCount) / Double(totalCount)
+                    }
                 }
             }
             
             // Rate limiting delay between batches
-            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+            try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
         }
         
-        isAnalyzing = false
-        logger.info("AI analysis completed for \(analysisResults.count) documents")
+        await MainActor.run {
+            self.isAnalyzing = false
+            self.logger.info("AI analysis completed for \(self.analysisResults.count) documents")
+        }
     }
     
     private func analyzeDocument(_ document: DocumentItem, indexedContent: [String: IndexingManager.DocumentIndex]) async -> DocumentAnalysis? {
@@ -113,13 +136,8 @@ class AIManager: ObservableObject {
         
         let prompt = createAnalysisPrompt(document: document, indexedDocument: indexedDoc)
         
-        do {
-            let response = await callOpenAI(prompt: prompt)
-            return parseAnalysisResponse(response, document: document)
-        } catch {
-            logger.error("Error analyzing document \(document.name): \(error)")
-            return nil
-        }
+        let response = await callOpenAI(prompt: prompt)
+        return parseAnalysisResponse(response, document: document)
     }
     
     private func createAnalysisPrompt(document: DocumentItem, indexedDocument: IndexingManager.DocumentIndex?) -> String {
@@ -179,7 +197,7 @@ class AIManager: ObservableObject {
             
         } catch {
             logger.error("OpenAI API call failed: \(error)")
-            throw error
+            return ""
         }
     }
     

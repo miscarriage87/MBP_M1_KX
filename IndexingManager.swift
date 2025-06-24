@@ -5,7 +5,13 @@ import OSLog
 import PDFKit
 import UniformTypeIdentifiers
 
-class IndexingManager: ObservableObject {
+class IndexingManager: BaseCancellableOperation {
+    private let processingDelay: TimeInterval
+    
+    init(processingDelay: TimeInterval = 0) {
+        self.processingDelay = processingDelay
+        super.init()
+    }
     private let logger = Logger(subsystem: "DocumentOrganizer", category: "IndexingManager")
     
     @Published var isIndexing = false
@@ -21,6 +27,7 @@ class IndexingManager: ObservableObject {
     private var contentIndex: [String: Set<String>] = [:] // Word to document IDs mapping
     private let indexQueue = DispatchQueue(label: "indexing.queue", qos: .utility)
     private let searchQueue = DispatchQueue(label: "search.queue", qos: .userInitiated)
+    
     
     // LLM-optimized metadata extraction
     struct DocumentIndex {
@@ -48,25 +55,34 @@ class IndexingManager: ObservableObject {
     func indexDocuments(_ documents: [DocumentItem]) {
         guard !documents.isEmpty else { return }
         
-        isIndexing = true
-        indexingProgress = 0.0
-        indexedCount = 0
-        documentIndex.removeAll()
-        contentIndex.removeAll()
-        
-        indexQueue.async { [weak self] in
-            self?.performIndexing(documents)
+        _ = startTask {
+            try await self.performIndexing(documents)
         }
     }
     
-    private func performIndexing(_ documents: [DocumentItem]) {
+    private func performIndexing(_ documents: [DocumentItem]) async throws {
         let totalCount = documents.count
         var processedCount = 0
         
+        await MainActor.run {
+            self.isIndexing = true
+            self.indexingProgress = 0.0
+            self.indexedCount = 0
+            self._documentIndex.removeAll()
+            self.contentIndex.removeAll()
+        }
+        
         for document in documents {
+            try await checkCancellation() // Check for cancellation before processing each document
+            
+            // Add processing delay for testing observability
+            if processingDelay > 0 {
+                try await Task.sleep(nanoseconds: UInt64(processingDelay * 1_000_000_000))
+            }
+            
             autoreleasepool {
                 if let index = extractDocumentContent(document) {
-                    documentIndex[index.id] = index
+                    _documentIndex[index.id] = index
                     
                     // Build inverted index for fast search
                     let words = tokenizeText(index.content + " " + index.title + " " + index.keywords.joined(separator: " "))
@@ -80,14 +96,14 @@ class IndexingManager: ObservableObject {
                 
                 processedCount += 1
                 
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     self.indexingProgress = Double(processedCount) / Double(totalCount)
                     self.indexedCount = processedCount
                 }
             }
         }
         
-        DispatchQueue.main.async {
+        await MainActor.run {
             self.isIndexing = false
             self.logger.info("Indexing completed. Processed \(processedCount) documents")
         }
@@ -306,7 +322,7 @@ class IndexingManager: ObservableObject {
         
         // Convert to search results and sort by relevance
         let results = documentScores.compactMap { (docId, score) -> SearchResult? in
-            guard let index = documentIndex[docId] else { return nil }
+            guard let index = _documentIndex[docId] else { return nil }
             
             return SearchResult(
                 document: index,
@@ -340,7 +356,7 @@ class IndexingManager: ObservableObject {
         llmIndex += "# SAP SuccessFactors Document Index\n\n"
         llmIndex += "## Document Categories and Structure\n\n"
         
-        let groupedDocs = Dictionary(grouping: documentIndex.values) { $0.category }
+        let groupedDocs = Dictionary(grouping: _documentIndex.values) { $0.category }
         
         for category in DocumentCategory.allCases {
             if let docs = groupedDocs[category], !docs.isEmpty {

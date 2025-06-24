@@ -123,7 +123,6 @@ struct AIAnalysisView: View {
             }
             .padding()
             .navigationTitle("AI Analysis")
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") {
