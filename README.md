@@ -190,7 +190,15 @@ The AI analysis provides:
 
 ## Contributing
 
-This application is designed specifically for SAP SuccessFactors HR transformation consultants. Contributions should focus on:
+We welcome contributions to improve the Document Organizer! This application is designed specifically for SAP SuccessFactors HR transformation consultants.
+
+**See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on how to get involved**, including:
+- Development setup and workflow
+- Coding standards and best practices
+- How to submit issues and pull requests
+- Testing requirements
+
+Contributions should focus on:
 - Enhanced SAP-specific document recognition
 - Improved HR process categorization
 - Additional AI analysis capabilities
@@ -199,6 +207,8 @@ This application is designed specifically for SAP SuccessFactors HR transformati
 ## License
 
 This project is provided as-is for professional use in SAP SuccessFactors implementations.
+
+**See [LICENSE](LICENSE) for complete license terms and conditions.**
 
 ## Support
 
