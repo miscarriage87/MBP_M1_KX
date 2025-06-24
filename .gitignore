@@ -1,0 +1,90 @@
+# Swift/Xcode .gitignore
+# Comprehensive coverage for Swift development with Xcode
+
+# ===========================
+# Swift Package Manager
+# ===========================
+.build/
+.swiftpm/
+.xcodeproj/
+.xcworkspace/
+build/
+.coverage/
+
+# ===========================
+# Xcode User Data
+# ===========================
+# User-specific project settings
+*.xcuserstate
+xcuserdata/
+
+# Build artifacts and derived data
+DerivedData/
+
+# ===========================
+# macOS & Finder Cruft
+# ===========================
+# macOS system files
+.DS_Store
+
+# macOS resource forks
+._*
+
+# Spotlight index files
+.Spotlight-V100
+
+# Trash folder
+.Trash
+
+# AppleDouble encoded files
+.AppleDouble
+
+# ===========================
+# Playgrounds & Symbol Files
+# ===========================
+# Swift Playgrounds
+*.playground
+
+# Debug symbol files
+*.dSYM
+
+# ===========================
+# Logs and Archives
+# ===========================
+# Log files
+*.log
+
+# iOS App Store Package
+*.ipa
+
+# Xcode archive files
+*.xcarchive
+
+# ===========================
+# Dependency Managers (Future-proofing)
+# ===========================
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# Carthage
+Carthage/
+Cartfile.resolved
+
+# CocoaPods
+Pods/
+Podfile.lock
+
+# ===========================
+# Personal Settings & Editor Files
+# ===========================
+# Vim swap files
+*.swp
+
+# Backup files
+*~
+
+# Git merge conflict backup files
+*.orig
