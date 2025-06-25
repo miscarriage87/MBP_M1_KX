@@ -27,7 +27,8 @@ let package = Package(
                 "AIManager.swift",
                 "ContentView.swift",
                 "AIAnalysisView.swift",
-                "AdditionalViews.swift"
+                "AdditionalViews.swift",
+                "ResponsiveUI.swift"
             ]
         ),
         .testTarget(

@@ -9,9 +9,13 @@ struct ContentView: View {
     @State private var selectedDirectory: URL?
     @State private var searchText = ""
     @State private var selectedCategory: DocumentCategory? = nil
+    @State private var selectedDocuments = Set<DocumentItem.ID>()
     @State private var showingFileImporter = false
     @State private var showingAIAnalysis = false
     @State private var showingExportSheet = false
+    @State private var showingSettings = false
+    @State private var sidebarWidth: CGFloat = 280
+    @State private var isCompactMode = false
     
     var filteredDocuments: [DocumentItem] {
         var documents = documentManager.documents
@@ -49,39 +53,67 @@ struct ContentView: View {
                 Divider()
                 
                 // Actions
-                VStack(spacing: 12) {
-                    Button(action: {
-                        showingFileImporter = true
-                    }) {
-                        Label("Select Directory", systemImage: "folder.badge.plus")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    
-                    if !documentManager.documents.isEmpty {
-                        Button(action: {
-                            documentManager.organizeDocuments()
-                        }) {
-                            Label("Organize Files", systemImage: "folder.badge.gearshape")
-                                .frame(maxWidth: .infinity)
+                ResponsiveContainer { sizeClass in
+                    Group {
+                        if sizeClass == .compact {
+                            HStack(spacing: 8) {
+                                AdaptiveButton("Select Directory", systemImage: "folder.badge.plus") {
+                                    showingFileImporter = true
+                                }
+                                
+                                if !documentManager.documents.isEmpty {
+                                    AdaptiveButton("Organize", systemImage: "folder.badge.gearshape") {
+                                        documentManager.organizeDocuments()
+                                    }
+                                    
+                                    AdaptiveButton("Index", systemImage: "magnifyingglass.circle") {
+                                        indexingManager.indexDocuments(documentManager.documents)
+                                    }
+                                    
+                                    AdaptiveButton("AI Analysis", systemImage: "brain.head.profile") {
+                                        showingAIAnalysis = true
+                                    }
+                                }
+                            }
+                        } else {
+                            VStack(spacing: 12) {
+                                Button(action: {
+                                    showingFileImporter = true
+                                }) {
+                                    Label("Select Directory", systemImage: "folder.badge.plus")
+                                        .frame(maxWidth: .infinity)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                
+                                if !documentManager.documents.isEmpty {
+                                    Button(action: {
+                                        documentManager.organizeDocuments()
+                                    }) {
+                                        Label("Organize Files", systemImage: "folder.badge.gearshape")
+                                            .frame(maxWidth: .infinity)
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .disabled(documentManager.isScanning)
+                                    
+                                    Button(action: {
+                                        indexingManager.indexDocuments(documentManager.documents)
+                                    }) {
+                                        Label("Build Index", systemImage: "magnifyingglass.circle")
+                                            .frame(maxWidth: .infinity)
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .disabled(indexingManager.isIndexing)
+                                    
+                                    Button(action: {
+                                        showingAIAnalysis = true
+                                    }) {
+                                        Label("AI Analysis", systemImage: "brain.head.profile")
+                                            .frame(maxWidth: .infinity)
+                                    }
+                                    .buttonStyle(.bordered)
+                                }
+                            }
                         }
-                        .buttonStyle(.bordered)
-                        
-                        Button(action: {
-                            indexingManager.indexDocuments(documentManager.documents)
-                        }) {
-                            Label("Build Index", systemImage: "magnifyingglass.circle")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                        
-                        Button(action: {
-                            showingAIAnalysis = true
-                        }) {
-                            Label("AI Analysis", systemImage: "brain.head.profile")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
                     }
                 }
                 .padding(.horizontal)

@@ -8,6 +8,13 @@ struct APIKeyInputView: View {
     
     @State private var apiKey = ""
     @State private var isSecure = true
+    @State private var isValidating = false
+    @State private var validationResult: ValidationResult?
+    
+    enum ValidationResult {
+        case valid
+        case invalid(String)
+    }
     
     var body: some View {
         NavigationView {

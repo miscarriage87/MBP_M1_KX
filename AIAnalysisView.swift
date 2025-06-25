@@ -4,9 +4,10 @@ struct AIAnalysisView: View {
     @EnvironmentObject var aiManager: AIManager
     @EnvironmentObject var documentManager: DocumentManager
     @EnvironmentObject var indexingManager: IndexingManager
-    @Environment(\.dismiss) private var dismiss
-    
-    @State private var showingAPIKeyInput = false
+@Environment(\.dismiss) private var dismiss
+
+@State private var showingAPIKeyInput = false
+@State private var isCompact = false
     
     var body: some View {
         NavigationView {
