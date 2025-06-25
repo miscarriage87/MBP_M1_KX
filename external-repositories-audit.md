@@ -1,41 +1,15 @@
 # External Repositories Audit Report
 
 ## Overview
-This document provides a comprehensive audit of two external repositories that can provide value to the DocumentOrganizerApp:
-- `supermemory-mcp` (TypeScript)
+This document provides a comprehensive audit of external repositories that can provide value to the DocumentOrganizerApp:
 - `markitdown` (Python)
+
+## Deferred Integrations
+
+**Semantic Memory Integration**: Initially planned integration with supermemory-mcp has been deferred in favor of developing a lightweight, native alternative that better fits the DocumentOrganizerApp architecture. See open issues for future implementation plans.
 
 ## Repository Details
 
-### 1. Supermemory-MCP
-**Repository**: https://github.com/supermemoryai/supermemory-mcp
-**Language**: TypeScript
-**Runtime**: Cloudflare Workers
-
-#### Public APIs
-- **Memory Management Endpoints**:
-  - `/supermemory-prompt` - Provides context about supermemory functionality
-  - `/add` - Store user information, preferences, and behaviors (addToSupermemory tool)
-  - `/search` - Search user memories using semantic matching (searchSupermemory tool)
-
-#### CLI Entry Points
-- `npm run dev` - Development server
-- `npm run build` - Build for production
-- `npm run deploy` - Deploy to Cloudflare Workers via Wrangler
-- `npm run preview` - Preview build locally
-
-#### Data Contracts
-- Uses Zod for schema validation
-- Memory storage with `containerTags` for user organization
-- Limit of 2000 memories per user
-- JSON-based API communication via MCP (Model Context Protocol)
-
-#### Deployment/Runtime Requirements
-- **Platform**: Cloudflare Workers
-- **Build Tool**: Wrangler
-- **Environment Variables**: `SUPERMEMORY_API_KEY`
-- **Dependencies**: Hono framework, React Router, Supermemory SDK
-- **Infrastructure**: Durable Objects for session management
 
 ### 2. Markitdown
 **Repository**: https://github.com/microsoft/markitdown
